@@ -3,9 +3,15 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <iostream> // DELETE
 #include <stdexcept>
 
 #include "utils.hpp"
+
+bool Table::isValidString(const std::string &str) {
+    constexpr const char *const ALLOWED = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890=+-*/,"; // ?
+    return str.find_first_not_of(ALLOWED) == std::string::npos;
+}
 
 Table Table::fromLines(const std::vector<std::string> &lines) {
     if (lines.size() < 2u) {
@@ -23,6 +29,47 @@ Table Table::fromLines(const std::vector<std::string> &lines) {
         table.insertRow(utils::splitString(rowLine, ','));
     }
     return table;
+}
+
+void Table::setColumnNames(const std::vector<std::string> &names) {
+    if (names.size() < 2u) {
+        throw std::runtime_error("Table must have at least two columns");
+    }
+    constexpr const char *const UNALLOWED = "1234567890=+-*/";
+    if (!names.front().empty()) {
+        throw std::runtime_error("First column name must be empty");
+    }
+    columns.reserve(names.size() - 1u);
+    size_t index = 0;
+    for (auto iter = std::next(names.begin()); iter != names.end(); ++iter) {
+        const auto &name = *iter;
+        if (name.find_first_of(UNALLOWED) != std::string::npos) {
+            throw std::runtime_error("Invalid characters in column names");
+        }
+        columns.emplace(name, index++);
+    }
+}
+
+void Table::insertRow(const std::vector<std::string> &rowValues) {
+    if (rowValues.size() < 2u) {
+        throw std::runtime_error("Row must have at least two cells");
+    }
+    RowId rowId = 0;
+    try {
+        const std::string &idLiteral = rowValues.front();
+        rowId = static_cast<RowId>(std::stoull(idLiteral));
+    } catch (std::logic_error &e) {
+        throw std::runtime_error(std::string("Cannot parse row id ") + e.what());
+    }
+    auto placement = data.emplace(rowId, Row{});
+    if (!placement.second) {
+        throw std::runtime_error("Each row must have unique id");
+    }
+    auto &row = (*placement.first).second;
+    for (auto iter = std::next(rowValues.begin()); iter != rowValues.end(); ++iter) {
+        const auto &rowValue = *iter;
+        row.emplace_back(rowValue);
+    }
 }
 
 Table Table::fromFile(const std::string_view &filename) {
@@ -68,23 +115,27 @@ void Table::print(std::ostream &stream) const {
 Table::Cell::Cell(const std::string &rawValue) : raw(rawValue) {
     if (raw.front() == '=') {
         size_t opIndex = raw.find_first_of("+-*/");
-        std::string leftStr = raw.substr(1u, opIndex);
+        std::string leftStr = raw.substr(1u, opIndex - 1u);
         std::string rightStr = raw.substr(opIndex + 1u);
         Formula formula;
         formula.operation = raw[opIndex];
         if (utils::isInteger(leftStr)) {
-            std::get<std::int64_t>(formula.left) = utils::parseInteger(leftStr);
+            formula.left = utils::parseInteger(leftStr);
+        } else {
+            formula.left = extractAddress(leftStr);
         }
         if (utils::isInteger(rightStr)) {
-            std::get<std::int64_t>(formula.right) = utils::parseInteger(rightStr);
+            formula.right = utils::parseInteger(rightStr);
+        } else {
+            formula.right = extractAddress(rightStr);
         }
-        std::get<Formula>(value) = formula;
+        value = formula;
         return;
     }
     if (!utils::isInteger(raw)) {
         throw std::runtime_error("Cell value is neither an integer not a formula");
     }
-    std::get<std::int64_t>(value) = utils::parseInteger(raw);
+    value = utils::parseInteger(raw);
 }
 
 bool Table::Cell::calculated() const {
@@ -98,61 +149,25 @@ Table::Address Table::Cell::extractAddress(const std::string &str) {
             break;
         }
     }
-    return Address(str.substr(0, numberStart), utils::parseInteger(str.substr(numberStart)));
-}
-
-void Table::setColumnNames(const std::vector<std::string> &names) {
-    if (names.size() < 2u) {
-        throw std::runtime_error("Table must have at least two columns");
-    }
-    constexpr const char *const UNALLOWED = "1234567890=+-*/";
-    if (!names.front().empty()) {
-        throw std::runtime_error("First column name must be empty");
-    }
-    columns.reserve(names.size() - 1u);
-    size_t index = 0;
-    for (auto iter = std::next(names.begin()); iter != names.end(); ++iter) {
-        const auto &name = *iter;
-        if (name.find_first_of(UNALLOWED) != std::string::npos) {
-            throw std::runtime_error("Invalid characters in column names");
-        }
-        columns.emplace(name, index++);
-    }
-}
-
-void Table::insertRow(const std::vector<std::string> &rowValues) {
-    if (rowValues.size() < 2u) {
-        throw std::runtime_error("Row must have at least two cells");
-    }
-    RowId rowId = 0;
-    try {
-        const std::string &idLiteral = rowValues.front();
-        rowId = static_cast<RowId>(std::stoul(idLiteral));
-    } catch (std::logic_error &e) {
-        throw std::runtime_error(std::string("Cannot parse row id ") + e.what());
-    }
-    auto placement = data.emplace(rowId, Row{});
-    if (!placement.second) {
-        throw std::runtime_error("Each row must have unique id");
-    }
-    auto &row = (*placement.first).second;
-    for (auto iter = std::next(rowValues.begin()); iter != rowValues.end(); ++iter) {
-        const auto &rowValue = *iter;
-        row.emplace_back(rowValue);
-    }
+    return Address(str.substr(0, numberStart + 1u), utils::parseInteger(str.substr(numberStart + 1u)));
 }
 
 void Table::calculateCell(Table::Cell &cell) {
     if (cell.calculated())
         return;
     const auto &formula = std::get<Formula>(cell.value);
+    std::int64_t leftValue = 0;
     if (std::holds_alternative<Address>(formula.left)) {
         const auto &address = std::get<Address>(formula.left);
         size_t columnIndex = columns[address.first];
         auto &leftCell = data[address.second][columnIndex];
         calculateCell(leftCell);
+        leftValue = std::get<std::int64_t>(leftCell.value);
+    } else {
+        leftValue = std::get<std::int64_t>(formula.left);
     }
-    std::int64_t leftValue = std::get<std::int64_t>(formula.left);
+
+    std::int64_t rightValue = 0;
     if (std::holds_alternative<Address>(formula.right)) {
         const auto &address = std::get<Address>(formula.right);
         size_t columnIndex = columns[address.first];
@@ -162,8 +177,11 @@ void Table::calculateCell(Table::Cell &cell) {
         }
         auto &rightCell = iter->second[columnIndex];
         calculateCell(rightCell);
+        rightValue = std::get<std::int64_t>(rightCell.value);
+    } else {
+        rightValue = std::get<std::int64_t>(formula.right);
     }
-    std::int64_t rightValue = std::get<std::int64_t>(formula.right);
+
     std::int64_t result = 0;
     switch (formula.operation) {
     case '+':
@@ -182,10 +200,5 @@ void Table::calculateCell(Table::Cell &cell) {
         result = leftValue / rightValue;
         break;
     }
-    std::get<std::int64_t>(cell.value) = result;
-}
-
-bool Table::isValidString(const std::string &str) {
-    constexpr const char *const ALLOWED = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890=+-*/,";
-    return str.find_first_not_of(ALLOWED) == std::string::npos;
+    cell.value = result;
 }
