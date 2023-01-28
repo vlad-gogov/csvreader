@@ -56,7 +56,7 @@ void Table::print(std::ostream &stream) const {
         for (auto &cell : row) {
             stream << ',';
             if (cell.calculated()) {
-                stream << std::get<Number>(cell.value);
+                stream << std::get<std::int64_t>(cell.value);
             } else {
                 stream << cell.raw;
             }
@@ -73,10 +73,10 @@ Table::Cell::Cell(const std::string &rawValue) : raw(rawValue) {
         Formula formula;
         formula.operation = raw[opIndex];
         if (utils::isInteger(leftStr)) {
-            std::get<Number>(formula.left) = utils::parseInteger(leftStr);
+            std::get<std::int64_t>(formula.left) = utils::parseInteger(leftStr);
         }
         if (utils::isInteger(rightStr)) {
-            std::get<Number>(formula.right) = utils::parseInteger(rightStr);
+            std::get<std::int64_t>(formula.right) = utils::parseInteger(rightStr);
         }
         std::get<Formula>(value) = formula;
         return;
@@ -84,11 +84,11 @@ Table::Cell::Cell(const std::string &rawValue) : raw(rawValue) {
     if (!utils::isInteger(raw)) {
         throw std::runtime_error("Cell value is neither an integer not a formula");
     }
-    std::get<Number>(value) = utils::parseInteger(raw);
+    std::get<std::int64_t>(value) = utils::parseInteger(raw);
 }
 
 bool Table::Cell::calculated() const {
-    return std::holds_alternative<Number>(value);
+    return std::holds_alternative<std::int64_t>(value);
 }
 
 Table::Address Table::Cell::extractAddress(const std::string &str) {
@@ -152,7 +152,7 @@ void Table::calculateCell(Table::Cell &cell) {
         auto &leftCell = data[address.second][columnIndex];
         calculateCell(leftCell);
     }
-    Number leftValue = std::get<Number>(formula.left);
+    std::int64_t leftValue = std::get<std::int64_t>(formula.left);
     if (std::holds_alternative<Address>(formula.right)) {
         const auto &address = std::get<Address>(formula.right);
         size_t columnIndex = columns[address.first];
@@ -163,8 +163,8 @@ void Table::calculateCell(Table::Cell &cell) {
         auto &rightCell = iter->second[columnIndex];
         calculateCell(rightCell);
     }
-    Number rightValue = std::get<Number>(formula.right);
-    Number result = 0;
+    std::int64_t rightValue = std::get<std::int64_t>(formula.right);
+    std::int64_t result = 0;
     switch (formula.operation) {
     case '+':
         result = leftValue + rightValue;
@@ -182,7 +182,7 @@ void Table::calculateCell(Table::Cell &cell) {
         result = leftValue / rightValue;
         break;
     }
-    std::get<Number>(cell.value) = result;
+    std::get<std::int64_t>(cell.value) = result;
 }
 
 bool Table::isValidString(const std::string &str) {

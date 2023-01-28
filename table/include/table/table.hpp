@@ -9,8 +9,6 @@
 #include <variant>
 #include <vector>
 
-using Number = std::int64_t;
-
 class Table {
   public:
     Table(const Table &) = default;
@@ -33,12 +31,12 @@ class Table {
 
     struct Formula {
         char operation;
-        std::variant<Number, Address> left;
-        std::variant<Number, Address> right;
+        std::variant<std::int64_t, Address> left;
+        std::variant<std::int64_t, Address> right;
     };
 
     struct Cell {
-        std::variant<Number, Formula> value;
+        std::variant<std::int64_t, Formula> value;
         std::string raw;
 
         explicit Cell(const std::string &rawValue);
