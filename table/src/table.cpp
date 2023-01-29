@@ -21,9 +21,9 @@ Table Table::fromLines(const std::vector<std::string> &lines) {
             throw std::runtime_error("Invalid characters");
         }
     }
-    std::vector<std::string> columnName = utils::splitString(lines.front(), ',');
     Table table;
-    table.setColumnNames(columnName);
+    std::vector<std::string> columnNames = utils::splitString(lines.front(), ',');
+    table.setColumnNames(columnNames);
     size_t countColumns = table.columns.size();
     for (auto iter = std::next(lines.begin()); iter != lines.end(); ++iter) {
         const auto &rowLine = *iter;
@@ -33,6 +33,7 @@ Table Table::fromLines(const std::vector<std::string> &lines) {
         }
         table.insertRow(rowValues);
     }
+    table.cellsCount = table.data.size() * table.columns.size();
     return table;
 }
 
@@ -152,12 +153,12 @@ Table::Address Table::Cell::extractAddress(const std::string &str) {
 void Table::calculate() {
     for (auto &[rowId, row] : data) {
         for (auto &cell : row) {
-            calculateCell(cell);
+            calculateCell(cell, 1u);
         }
     }
 }
 
-std::int64_t Table::valueByAddress(const std::variant<std::int64_t, Address> &cellAddress) {
+std::int64_t Table::valueByAddress(const std::variant<std::int64_t, Address> &cellAddress, size_t depth) {
     std::int64_t value = 0;
     if (std::holds_alternative<Address>(cellAddress)) {
         const auto &address = std::get<Address>(cellAddress);
@@ -172,7 +173,7 @@ std::int64_t Table::valueByAddress(const std::variant<std::int64_t, Address> &ce
             throw std::runtime_error("Invalid row id in address " + address.first + std::to_string(address.second));
         }
         auto &cell = iterRow->second[columnIndex];
-        calculateCell(cell);
+        calculateCell(cell, depth);
         value = std::get<std::int64_t>(cell.value);
     } else {
         value = std::get<std::int64_t>(cellAddress);
@@ -180,14 +181,16 @@ std::int64_t Table::valueByAddress(const std::variant<std::int64_t, Address> &ce
     return value;
 }
 
-void Table::calculateCell(Table::Cell &cell) {
+void Table::calculateCell(Table::Cell &cell, size_t depth) {
     if (cell.calculated())
         return;
+    if (depth > cellsCount) {
+        throw std::runtime_error("Detected address cycle during calculations");
+    }
     const auto &formula = std::get<Formula>(cell.value);
 
-    std::int64_t leftValue = valueByAddress(formula.left);
-
-    std::int64_t rightValue = valueByAddress(formula.right);
+    std::int64_t leftValue = valueByAddress(formula.left, depth + 1);
+    std::int64_t rightValue = valueByAddress(formula.right, depth + 1);
 
     std::int64_t result = 0;
     switch (formula.operation) {

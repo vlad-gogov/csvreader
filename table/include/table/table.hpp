@@ -53,11 +53,12 @@ class Table {
 
     void setColumnNames(const std::vector<std::string> &names);
     void insertRow(const std::vector<std::string> &rowValues);
-    std::int64_t valueByAddress(const std::variant<std::int64_t, Address> &cellAddress);
-    void calculateCell(Cell &cell);
+    std::int64_t valueByAddress(const std::variant<std::int64_t, Address> &cellAddress, size_t depth);
+    void calculateCell(Cell &cell, size_t depth);
 
     static bool isValidString(const std::string &str);
 
     std::unordered_map<ColumnId, size_t> columns;
     std::unordered_map<RowId, Row> data;
+    size_t cellsCount;
 };

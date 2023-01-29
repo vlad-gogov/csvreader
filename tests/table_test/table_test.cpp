@@ -5,7 +5,7 @@
 
 #include "table/table.hpp"
 
-TEST(Table, can_calculate_formulas) {
+TEST(Table, can_calculate_with_formulas) {
     auto table = Table::fromLines({
         ",A,B,Cell",
         "1,1,0,1",
@@ -22,7 +22,7 @@ TEST(Table, can_calculate_formulas) {
     ASSERT_EQ(result.str(), answer);
 }
 
-TEST(Table, 2) {
+TEST(Table, can_calculate_without_formulas) {
     auto table = Table::fromLines({
         ",A,B,Cell",
         "1,1,2,3",
@@ -39,7 +39,7 @@ TEST(Table, 2) {
     ASSERT_EQ(result.str(), answer);
 }
 
-TEST(Table, 3) {
+TEST(Table, can_calculate_with_complex_formulas) {
     auto table = Table::fromLines({
         ",A,B,Cell",
         "0,1,1,=A0+B0",
@@ -56,7 +56,7 @@ TEST(Table, 3) {
     ASSERT_EQ(result.str(), answer);
 }
 
-TEST(Table, 4) {
+TEST(Table, can_calculate_with_complex_formulas_deep) {
     auto table = Table::fromLines({
         ",A,B,Cell",
         "0,1,1,=A1+B0",
@@ -79,7 +79,7 @@ TEST(Table, can_throw_exception_division_by_zero) {
     ASSERT_THROW(table.calculate(), std::runtime_error);
 }
 
-TEST(Table, can_throw_exception_invalid_characters_in_columns) {
+TEST(Table, can_throw_exception_invalid_characters_in_column_name) {
     ASSERT_THROW(Table::fromLines({
                      ",A,B,Cell?",
                      "0,1,0,=A0*B0",
@@ -87,7 +87,7 @@ TEST(Table, can_throw_exception_invalid_characters_in_columns) {
                  std::runtime_error);
 }
 
-TEST(Table, can_throw_exception_invalid_characters_in_rows) {
+TEST(Table, can_throw_exception_invalid_characters_in_row_name) {
     ASSERT_THROW(Table::fromLines({
                      ",A,B,Cell",
                      "A0,1,0,=A0*B0",
@@ -95,7 +95,7 @@ TEST(Table, can_throw_exception_invalid_characters_in_rows) {
                  std::runtime_error);
 }
 
-TEST(Table, can_throw_exception_table_have_least_two_rows) {
+TEST(Table, can_throw_exception_table_have_at_least_two_rows) {
     ASSERT_THROW(Table::fromLines({
                      ",A,B,Cell5",
                      "0,1,0,=A0*B0",
@@ -103,17 +103,18 @@ TEST(Table, can_throw_exception_table_have_least_two_rows) {
                  std::runtime_error);
 }
 
-TEST(Table, can_throw_exception_table_have_least_two_columns) {
+TEST(Table, can_throw_exception_table_have_at_least_two_columns) {
     ASSERT_THROW(Table::fromLines({
-                     ",",
+                     ",A",
                      "0",
+                     "1",
                  }),
                  std::runtime_error);
 }
 
 TEST(Table, can_throw_exception_name_first_column_is_not_empty) {
     ASSERT_THROW(Table::fromLines({
-                     "C,A,B,Cell?",
+                     "5,A,B,Cell?",
                      "0,1,0,=A0*B0",
                  }),
                  std::runtime_error);
@@ -157,4 +158,20 @@ TEST(Table, can_throw_exception_cell_is_not_formula) {
                      "0,1,0,A1",
                  }),
                  std::runtime_error);
+}
+
+TEST(Table, can_throw_exception_cycle_1) {
+    auto table = Table::fromLines({
+        ",A,B,Cell",
+        "0,1,=B0+A0,=A0+1",
+    });
+    ASSERT_THROW(table.calculate(), std::runtime_error);
+}
+
+TEST(Table, can_throw_exception_cycle_2) {
+    auto table = Table::fromLines({
+        ",A,B,Cell",
+        "0,1,=Cell0+1,=B0+1",
+    });
+    ASSERT_THROW(table.calculate(), std::runtime_error);
 }
