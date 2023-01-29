@@ -61,4 +61,6 @@ class Table {
     std::unordered_map<ColumnId, size_t> columns;
     std::unordered_map<RowId, Row> data;
     size_t cellsCount;
+    std::vector<std::string_view> columnsNames;
+    std::vector<RowId> rowsIds;
 };

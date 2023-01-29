@@ -15,7 +15,7 @@ TEST(Table, can_calculate_with_formulas) {
     table.calculate();
     std::stringstream result;
     table.print(result);
-    std::string answer = ",A,Cell,B\n"
+    std::string answer = ",A,B,Cell\n"
                          "1,1,0,1\n"
                          "2,2,6,0\n"
                          "30,0,1,5\n";
@@ -32,7 +32,7 @@ TEST(Table, can_calculate_without_formulas) {
     table.calculate();
     std::stringstream result;
     table.print(result);
-    std::string answer = ",A,Cell,B\n"
+    std::string answer = ",A,B,Cell\n"
                          "1,1,2,3\n"
                          "2,4,5,6\n"
                          "30,7,8,9\n";
@@ -49,7 +49,7 @@ TEST(Table, can_calculate_with_complex_formulas) {
     table.calculate();
     std::stringstream result;
     table.print(result);
-    std::string answer = ",A,Cell,B\n"
+    std::string answer = ",A,B,Cell\n"
                          "0,1,1,2\n"
                          "1,3,5,8\n"
                          "2,13,5,65\n";
@@ -65,7 +65,7 @@ TEST(Table, can_calculate_with_complex_formulas_deep) {
     table.calculate();
     std::stringstream result;
     table.print(result);
-    std::string answer = ",A,Cell,B\n"
+    std::string answer = ",A,B,Cell\n"
                          "0,1,1,6\n"
                          "1,5,3,2\n";
     ASSERT_EQ(result.str(), answer);

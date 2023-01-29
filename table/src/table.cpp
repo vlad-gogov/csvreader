@@ -22,9 +22,11 @@ Table Table::fromLines(const std::vector<std::string> &lines) {
         }
     }
     Table table;
-    std::vector<std::string> columnNames = utils::splitString(lines.front(), ',');
-    table.setColumnNames(columnNames);
+    std::vector<std::string> rawColumnNames = utils::splitString(lines.front(), ',');
+    table.setColumnNames(rawColumnNames);
     size_t countColumns = table.columns.size();
+    table.columnsNames.reserve(countColumns);
+    table.rowsIds.reserve(lines.size() - 1u);
     for (auto iter = std::next(lines.begin()); iter != lines.end(); ++iter) {
         const auto &rowLine = *iter;
         auto rowValues = utils::splitString(rowLine, ',');
@@ -33,7 +35,7 @@ Table Table::fromLines(const std::vector<std::string> &lines) {
         }
         table.insertRow(rowValues);
     }
-    table.cellsCount = table.data.size() * table.columns.size();
+    table.cellsCount = table.data.size() * countColumns;
     return table;
 }
 
@@ -52,7 +54,8 @@ void Table::setColumnNames(const std::vector<std::string> &names) {
         if (name.find_first_of(UNALLOWED) != std::string::npos) {
             throw std::runtime_error("Invalid characters in column names");
         }
-        columns.emplace(name, index++);
+        auto placement = columns.emplace(name, index++);
+        columnsNames.emplace_back(placement.first->first);
     }
 }
 
@@ -76,6 +79,7 @@ void Table::insertRow(const std::vector<std::string> &rowValues) {
         const auto &rowValue = *iter;
         row.emplace_back(rowValue);
     }
+    rowsIds.emplace_back(rowId);
 }
 
 Table Table::fromFile(const std::string_view &filename) {
@@ -92,13 +96,14 @@ Table Table::fromFile(const std::string_view &filename) {
 }
 
 void Table::print(std::ostream &stream) const {
-    for (const auto &[columnName, columnIndex] : columns) {
-        stream << ',' << columnName;
+    for (const auto &name : columnsNames) {
+        stream << ',' << name;
     }
     stream << '\n';
-    for (auto &[rowId, row] : data) {
+    for (RowId rowId : rowsIds) {
         stream << rowId;
-        for (auto &cell : row) {
+        const auto &row = data.at(rowId);
+        for (const auto &cell : row) {
             stream << ',';
             if (cell.calculated()) {
                 stream << std::get<std::int64_t>(cell.value);
