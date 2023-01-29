@@ -74,7 +74,7 @@ jobs:
         ctest --output-on-failure
   windows-mingw:
     name: Windows MinGW build & test
-    runs-on: windows-2022
+    runs-on: windows-2019
     needs: code-style-check
     steps:
     - uses: actions/checkout@v3
