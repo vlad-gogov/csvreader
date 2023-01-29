@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Release
+  
+jobs:
+  code-style-check:
+    name: Code style check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: DoozyX/clang-format-lint-action@v0.13
+      with:
+        source: '.'
+        exclude: './thirdparty ./docs'
+        extensions: 'hpp,cpp'
+        clangFormatVersion: 12
+  ubuntu-gcc:
+    name: Ubuntu GCC build & test
+    runs-on: ubuntu-latest
+    needs: code-style-check
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build
+      run: |
+        mkdir build && cd build
+        cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+        make
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure
+  ubuntu-clang:
+    name: Ubuntu Clang build & test
+    runs-on: ubuntu-latest
+    needs: code-style-check
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build
+      run: |
+        mkdir build && cd build
+        CC=clang CXX=clang++ cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+        make
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure
+  windows-msvc:
+    name: Windows MSVC build & test
+    runs-on: windows-2022
+    needs: code-style-check
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build
+      run: |
+        md build && cd build
+        cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% ..
+        cmake --build .
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure
+  windows-mingw:
+    name: Windows MinGW build & test
+    runs-on: windows-2022
+    needs: code-style-check
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build
+      run: |
+        md build && cd build
+        cmake -G "MinGW Makefiles" -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% ..
+        cmake --build .
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure
