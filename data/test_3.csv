@@ -1,0 +1,4 @@
+,A,B,Cell
+0,1,1,=A0+B0
+1,=Cell0+B0,=Cell0+A1,=A1+B1
+2,=B1+Cell1,=A2-Cell1,=A2*B2

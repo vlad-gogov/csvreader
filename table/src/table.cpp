@@ -63,13 +63,19 @@ void Table::insertRow(const std::vector<std::string> &rowValues) {
     if (rowValues.size() < 2u) {
         throw std::runtime_error("Row must have at least two cells");
     }
-    RowId rowId = 0;
+    std::int64_t rawRowId = 0;
     try {
         const std::string &idLiteral = rowValues.front();
-        rowId = static_cast<RowId>(std::stoull(idLiteral));
+        rawRowId = std::stoll(idLiteral);
     } catch (std::logic_error &e) {
         throw std::runtime_error(std::string("Cannot parse row id ") + e.what());
     }
+
+    if (rawRowId < 0) {
+        throw std::runtime_error(std::string("Row id cannot be less than zero : " + std::to_string(rawRowId)));
+    }
+    RowId rowId = static_cast<RowId>(rawRowId);
+
     auto placement = data.emplace(rowId, Row{});
     if (!placement.second) {
         throw std::runtime_error("Each row must have unique id");

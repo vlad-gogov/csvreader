@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdexcept>
 
 #include <table/table.hpp>
 
@@ -8,8 +9,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     std::string_view filename = argv[1];
-    auto table = Table::fromFile(filename);
-    table.calculate();
-    table.print(std::cout);
+    try {
+        auto table = Table::fromFile(filename);
+        table.calculate();
+        table.print(std::cout);
+    } catch (const std::runtime_error &error) {
+        std::cerr << error.what() << std::endl;
+    }
     return 0;
 }

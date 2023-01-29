@@ -81,40 +81,47 @@ TEST(Table, can_throw_exception_division_by_zero) {
 
 TEST(Table, can_throw_exception_invalid_characters_in_column_name) {
     ASSERT_THROW(Table::fromLines({
-                     ",A,B,Cell?",
+                     ",A,B,Cell1",
                      "0,1,0,=A0*B0",
                  }),
                  std::runtime_error);
 }
 
-TEST(Table, can_throw_exception_invalid_characters_in_row_name) {
+TEST(Table, can_throw_exception_invalid_characters_in_row_id) {
     ASSERT_THROW(Table::fromLines({
                      ",A,B,Cell",
-                     "A0,1,0,=A0*B0",
+                 }),
+                 std::runtime_error);
+}
+
+TEST(Table, can_throw_exception_repeat_row_id) {
+    ASSERT_THROW(Table::fromLines({
+                     ",A,B,Cell",
+                     "0,1,0,=A0*B0",
+                     "0,2,3,4",
                  }),
                  std::runtime_error);
 }
 
 TEST(Table, can_throw_exception_table_have_at_least_two_rows) {
     ASSERT_THROW(Table::fromLines({
-                     ",A,B,Cell5",
-                     "0,1,0,=A0*B0",
+                     ",A,B,Cell",
                  }),
                  std::runtime_error);
 }
 
 TEST(Table, can_throw_exception_table_have_at_least_two_columns) {
     ASSERT_THROW(Table::fromLines({
-                     ",A",
+                     "",
                      "0",
                      "1",
                  }),
                  std::runtime_error);
 }
 
-TEST(Table, can_throw_exception_name_first_column_is_not_empty) {
+TEST(Table, can_throw_exception_name_first_column_name_is_not_empty) {
     ASSERT_THROW(Table::fromLines({
-                     "5,A,B,Cell?",
+                     "5,A,B,Cell",
                      "0,1,0,=A0*B0",
                  }),
                  std::runtime_error);
@@ -174,4 +181,31 @@ TEST(Table, can_throw_exception_cycle_2) {
         "0,1,=Cell0+1,=B0+1",
     });
     ASSERT_THROW(table.calculate(), std::runtime_error);
+}
+
+TEST(Table, can_calculate_with_unordered_rows) {
+    auto table = Table::fromLines({
+        ",A,B,Cell",
+        "0,1,1,=A0+B0",
+        "2,=B1+Cell1,=A2-Cell1,=A2*B2",
+        "1,=Cell0+B0,=Cell0+A1,=A1+B1",
+    });
+    table.calculate();
+    std::stringstream result;
+    table.print(result);
+    std::string answer = ",A,B,Cell\n"
+                         "0,1,1,2\n"
+                         "2,13,5,65\n"
+                         "1,3,5,8\n";
+    ASSERT_EQ(result.str(), answer);
+}
+
+TEST(Table, can_throw_exception_negative_row_id) {
+    ASSERT_THROW(Table::fromLines({
+                     ",A,B,Cell",
+                     "1,1,0,1",
+                     "2,2,=A1+Cell1,0",
+                     "-1,0,=B1+A1,5",
+                 }),
+                 std::runtime_error);
 }
