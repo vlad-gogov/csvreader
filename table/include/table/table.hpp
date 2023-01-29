@@ -53,6 +53,7 @@ class Table {
 
     void setColumnNames(const std::vector<std::string> &names);
     void insertRow(const std::vector<std::string> &rowValues);
+    std::int64_t valueByAddress(const std::variant<std::int64_t, Address> &cellAddress);
     void calculateCell(Cell &cell);
 
     static bool isValidString(const std::string &str);

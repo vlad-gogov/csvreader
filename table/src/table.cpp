@@ -3,13 +3,12 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <iostream> // DELETE
 #include <stdexcept>
 
 #include "utils.hpp"
 
 bool Table::isValidString(const std::string &str) {
-    constexpr const char *const ALLOWED = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890=+-*/,"; // ?
+    constexpr const char *const ALLOWED = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890=+-*/,";
     return str.find_first_not_of(ALLOWED) == std::string::npos;
 }
 
@@ -22,11 +21,17 @@ Table Table::fromLines(const std::vector<std::string> &lines) {
             throw std::runtime_error("Invalid characters");
         }
     }
+    std::vector<std::string> columnName = utils::splitString(lines.front(), ',');
     Table table;
-    table.setColumnNames(utils::splitString(lines.front(), ','));
+    table.setColumnNames(columnName);
+    size_t countColumns = table.columns.size();
     for (auto iter = std::next(lines.begin()); iter != lines.end(); ++iter) {
         const auto &rowLine = *iter;
-        table.insertRow(utils::splitString(rowLine, ','));
+        auto rowValues = utils::splitString(rowLine, ',');
+        if (rowValues.size() - 1u != countColumns) {
+            throw std::runtime_error("The number of cells in a row must match the number of columns");
+        }
+        table.insertRow(rowValues);
     }
     return table;
 }
@@ -83,14 +88,6 @@ Table Table::fromFile(const std::string_view &filename) {
         lines.emplace_back(std::move(line));
     }
     return fromLines(lines);
-}
-
-void Table::calculate() {
-    for (auto &[rowId, row] : data) {
-        for (auto &cell : row) {
-            calculateCell(cell);
-        }
-    }
 }
 
 void Table::print(std::ostream &stream) const {
@@ -152,35 +149,45 @@ Table::Address Table::Cell::extractAddress(const std::string &str) {
     return Address(str.substr(0, numberStart + 1u), utils::parseInteger(str.substr(numberStart + 1u)));
 }
 
+void Table::calculate() {
+    for (auto &[rowId, row] : data) {
+        for (auto &cell : row) {
+            calculateCell(cell);
+        }
+    }
+}
+
+std::int64_t Table::valueByAddress(const std::variant<std::int64_t, Address> &cellAddress) {
+    std::int64_t value = 0;
+    if (std::holds_alternative<Address>(cellAddress)) {
+        const auto &address = std::get<Address>(cellAddress);
+        auto iterColumn = columns.find(address.first);
+        if (iterColumn == columns.end()) {
+            throw std::runtime_error("Invalid column name in address " + address.first +
+                                     std::to_string(address.second));
+        }
+        size_t columnIndex = iterColumn->second;
+        auto iterRow = data.find(address.second);
+        if (iterRow == data.end()) {
+            throw std::runtime_error("Invalid row id in address " + address.first + std::to_string(address.second));
+        }
+        auto &cell = iterRow->second[columnIndex];
+        calculateCell(cell);
+        value = std::get<std::int64_t>(cell.value);
+    } else {
+        value = std::get<std::int64_t>(cellAddress);
+    }
+    return value;
+}
+
 void Table::calculateCell(Table::Cell &cell) {
     if (cell.calculated())
         return;
     const auto &formula = std::get<Formula>(cell.value);
-    std::int64_t leftValue = 0;
-    if (std::holds_alternative<Address>(formula.left)) {
-        const auto &address = std::get<Address>(formula.left);
-        size_t columnIndex = columns[address.first];
-        auto &leftCell = data[address.second][columnIndex];
-        calculateCell(leftCell);
-        leftValue = std::get<std::int64_t>(leftCell.value);
-    } else {
-        leftValue = std::get<std::int64_t>(formula.left);
-    }
 
-    std::int64_t rightValue = 0;
-    if (std::holds_alternative<Address>(formula.right)) {
-        const auto &address = std::get<Address>(formula.right);
-        size_t columnIndex = columns[address.first];
-        auto iter = data.find(address.second);
-        if (iter == data.end()) {
-            throw std::runtime_error("Invalid row id in address " + cell.raw);
-        }
-        auto &rightCell = iter->second[columnIndex];
-        calculateCell(rightCell);
-        rightValue = std::get<std::int64_t>(rightCell.value);
-    } else {
-        rightValue = std::get<std::int64_t>(formula.right);
-    }
+    std::int64_t leftValue = valueByAddress(formula.left);
+
+    std::int64_t rightValue = valueByAddress(formula.right);
 
     std::int64_t result = 0;
     switch (formula.operation) {
