@@ -39,5 +39,5 @@ bool utils::isInteger(const std::string &str) {
     auto first = str.front();
     if (first != '-' && first != '+' && !std::isdigit(first))
         return false;
-    return std::all_of(std::next(str.begin()), str.end(), [](const char &ch) { std::isdigit(ch); });
+    return std::all_of(std::next(str.begin()), str.end(), [](const char &ch) { return std::isdigit(ch); });
 }
