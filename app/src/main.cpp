@@ -13,8 +13,9 @@ int main(int argc, char *argv[]) {
         auto table = Table::fromFile(filename);
         table.calculate();
         table.print(std::cout);
-    } catch (const std::runtime_error &error) {
+    } catch (std::runtime_error &error) {
         std::cerr << error.what() << std::endl;
+        return 1;
     }
     return 0;
 }
